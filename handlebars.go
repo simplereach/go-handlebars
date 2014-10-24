@@ -401,7 +401,6 @@ func call(v reflect.Value, method reflect.Method) reflect.Value {
 // Evaluate interfaces and pointers looking for a value that can look up the name, via a
 // struct field, method, or map key, and return the result of the lookup.
 func lookup(contextChain []interface{}, name string) reflect.Value {
-  fmt.Println("LOOKING UP: " + name);
     defer func() {
         if r := recover(); r != nil {
             fmt.Printf("Panic while looking up %q: %s\n", name, r)
@@ -493,10 +492,7 @@ func renderSection(section *sectionElement, contextChain []interface{}, buf io.W
     value := lookup(contextChain, section.name)
     var context = contextChain[len(contextChain)-1].(reflect.Value)
     var contexts = []interface{}{}
-    fmt.Println("has handler? ", section.name)
     if handler, ok := helpers[section.name]; ok {
-      fmt.Printf("\nVALUE(%v): %v\n", section.name, value)
-      fmt.Println("els: ", section.elems)
       var stringBuf bytes.Buffer
       if len(section.elems) >= 1 {
 /*        chain2 := make([]interface{}, len(contextChain)+1)
@@ -527,7 +523,6 @@ func renderSection(section *sectionElement, contextChain []interface{}, buf io.W
             }
         }
         params = append(params, stringBuf.String())
-fmt.Printf("params: %v\n----", params)
         renderElement(&textElement{
           text: []byte(handler(params...)),
         }, contextChain, buf);
@@ -572,10 +567,8 @@ fmt.Printf("params: %v\n----", params)
 func renderElement(element interface{}, contextChain []interface{}, buf io.Writer) {
     switch elem := element.(type) {
     case *textElement:
-        fmt.Println("*text");
         buf.Write(elem.text)
     case *varElement:
-        fmt.Println("*var");
         defer func() {
             if r := recover(); r != nil {
                 fmt.Printf("Panic while looking up %q: %s\n", elem.name, r)
@@ -604,10 +597,8 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
                         }
                     }
                 }
-                fmt.Println("---")
 
                 result := helper(params...)
-                fmt.Println("---")
                 if elem.raw {
                     fmt.Fprintf(buf, result)
                 } else {
@@ -617,7 +608,6 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
             } else {
               val = lookup(contextChain, elPieces[0])
               for _, piece := range elPieces[1:] {
-                fmt.Printf("adding Param!!!\n")
                 if piece[0] == '"' && piece[len(piece)-1] == '"' {
                   // is a string param
                   params = append(params, reflect.ValueOf(piece[1:len(piece)-1]))
@@ -638,7 +628,6 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
             // looks like a path
             curVal := lookup(contextChain, pathPieces[0])
             for i, _ := range pathPieces {
-              fmt.Println("curVal: ", curVal)
               if i == len(pathPieces) - 1 {
                 // TODO: HTML escape?
                 val = curVal
@@ -646,10 +635,7 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
               }
               if curVal.IsValid() {
                 indVal := indirect(curVal)
-                fmt.Println("%v", indVal.Kind())
                 if indVal.IsValid() && indVal.Kind() == reflect.Map {
-                  fmt.Printf("IS A MAP")
-                  fmt.Printf("looking up map key: %v\n\n", pathPieces[i+1])
                   curVal = indVal.MapIndex(reflect.ValueOf(pathPieces[i+1]))
                 }
               }
@@ -666,26 +652,21 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
             } else {
                 var s string
                 if(indirect(val).Type().Kind() == reflect.Func) {
-                  fmt.Printf("params: %v", params)
                   s = fmt.Sprint(indirect(val).Call(params)[0])
                 } else {
                   s = fmt.Sprint(val.Interface())
                 }
-                fmt.Printf(s)
                 htmlEscape(buf, []byte(s))
             }
         }
     case *sectionElement:
-        fmt.Println("*section");
         renderSection(elem, contextChain, buf)
     case *Template:
-        fmt.Println("*template");
         elem.renderTemplate(contextChain, buf)
     }
 }
 
 func (tmpl *Template) renderTemplate(contextChain []interface{}, buf io.Writer) {
-  fmt.Printf("rendering an alement (%v)\n\n", len(tmpl.elems))
     for _, elem := range tmpl.elems {
         renderElement(elem, contextChain, buf)
     }
